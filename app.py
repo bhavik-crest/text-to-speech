@@ -1,89 +1,61 @@
-from flask import Flask, request, render_template, send_file, redirect, url_for, flash
+from flask import Flask, request, render_template, redirect, url_for, flash
 from gtts import gTTS
 import time
 import os
-import shutil
+from vercel_blob import put, list as blob_list, delete as blob_delete
 
 app = Flask(__name__)
+app.secret_key = "your_secret_key"
 
-# Serverless-writable directory
-TEMP_FOLDER = "/tmp/audio"
+# Blob folder name
+BLOB_FOLDER = "tts-audio"
 
-# Public directory for serving (read-only in serverless deployments)
-PUBLIC_AUDIO_FOLDER = "static/audio"
-
-# Create folders if running locally
-os.makedirs(TEMP_FOLDER, exist_ok=True)
-os.makedirs(PUBLIC_AUDIO_FOLDER, exist_ok=True)
-
-@app.route('/', methods=['GET', 'POST'])
+@app.route("/", methods=["GET", "POST"])
 def index():
-    if request.method == 'POST':
-        text = request.form['text']
-        timestamp = int(time.time() * 1000)
-        filename = f"output_{timestamp}.mp3"
+    if request.method == "POST":
+        text = request.form.get("text", "").strip()
 
-        # Save to writable /tmp folder
-        temp_path = os.path.join(TEMP_FOLDER, filename)
-        tts = gTTS(text=text, lang='en')
+        if not text:
+            flash("Please enter text!", "error")
+            return redirect(url_for("index"))
+
+        # Create audio file in memory
+        timestamp = int(time.time() * 1000)
+        filename = f"audio_{timestamp}.mp3"
+        temp_path = f"/tmp/{filename}"
+
+        tts = gTTS(text=text, lang="en")
         tts.save(temp_path)
 
-        # Copy to static folder for browser access (only works locally)
-        public_path = os.path.join(TEMP_FOLDER, filename)
-        try:
-            shutil.copy(temp_path, public_path)
-        except:
-            pass  # Ignore in Vercel (read-only static dir)
+        # Upload to Vercel Blob
+        with open(temp_path, "rb") as file:
+            put(f"{BLOB_FOLDER}/{filename}", file, content_type="audio/mpeg")
 
-        flash('Audio created successfully!', 'success')
+        flash("Audio created successfully!", "success")
+        return redirect(url_for("index"))
 
-        return redirect(url_for('index', new_audio=filename))
+    # Load existing audio list from Blob
+    files = blob_list(prefix=BLOB_FOLDER)
 
-    new_audio = request.args.get('new_audio')
+    # Extract only filename + URL
+    audio_files = [
+        {"name": item["pathname"].replace(f"{BLOB_FOLDER}/", ""), "url": item["url"]}
+        for item in files
+    ]
 
-    # List existing files (from static/audio or empty on serverless)
-    try:
-        files = sorted(os.listdir(TEMP_FOLDER), reverse=True)
-    except:
-        files = []
+    audio_files.reverse()
 
-    return render_template('index.html', audio_file=new_audio, files=files)
+    return render_template("index.html", files=audio_files)
 
-@app.route('/audio/<filename>')
-def audio(filename):
-    """Serve file directly from /tmp (serverless safe)."""
-    temp_path = os.path.join(TEMP_FOLDER, filename)
-    if os.path.exists(temp_path):
-        return send_file(temp_path, as_attachment=False)
-
-    # Fallback for local static folder
-    public_path = os.path.join(TEMP_FOLDER, filename)
-    if os.path.exists(public_path):
-        return send_file(public_path, as_attachment=False)
-
-    return "File not found", 404
-
-@app.route('/delete/<filename>', methods=['POST'])
+@app.route("/delete/<filename>", methods=["POST"])
 def delete(filename):
-    temp_path = os.path.join(TEMP_FOLDER, filename)
-    public_path = os.path.join(TEMP_FOLDER, filename)
+    try:
+        blob_delete(f"{BLOB_FOLDER}/{filename}")
+        flash("Audio deleted successfully!", "success")
+    except Exception as e:
+        flash(f"Error deleting: {str(e)}", "error")
 
-    deleted = False
+    return redirect(url_for("index"))
 
-    if os.path.exists(temp_path):
-        os.remove(temp_path)
-        deleted = True
-
-    if os.path.exists(public_path):
-        os.remove(public_path)
-        deleted = True
-
-    if deleted:
-        flash(f"{filename} deleted successfully!", "success")
-    else:
-        flash("File not found.", "warning")
-
-    return redirect(url_for('index'))
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(debug=True)

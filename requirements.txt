@@ -4,3 +4,4 @@ Werkzeug
 itsdangerous
 Jinja2
 click
+vercel-blob
