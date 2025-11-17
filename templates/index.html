@@ -33,18 +33,18 @@
 
                     <h5>All Audio Files (newest first)</h5>
 
-                    {% if files %}
+                    {% if files and files|length > 0 %}
                     <ul class="list-group">
-                        {% for file in files %}
+                        {% for f in files %}
                         <li class="list-group-item d-flex align-items-center justify-content-between gap-3">
                             <audio controls class="flex-grow-1 me-3" style="outline:none;">
-                                <source src="{{ url_for('audio', filename=file) }}" type="audio/mp3" />
+                                <source src="{{ f.url }}" type="audio/mpeg" />
                                 Your browser does not support the audio element.
                             </audio>
 
                             <!-- DELETE BUTTON WITH SWEETALERT -->
-                            <form method="POST" action="{{ url_for('delete', filename=file) }}" class="delete-form">
-                                <button type="button" class="btn btn-md delete-btn" data-file="{{ file }}">
+                            <form method="POST" action="{{ url_for('delete', filename=f.name) }}" class="delete-form">
+                                <button type="button" class="btn btn-md delete-btn" data-file="{{ f.name }}">
                                     <i class="text-danger bi bi-trash"></i>
                                 </button>
                             </form>

@@ -4,4 +4,5 @@ Werkzeug
 itsdangerous
 Jinja2
 click
-vercel-blob
+supabase
+python-dotenv
