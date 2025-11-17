@@ -1,0 +1,6 @@
+Flask
+gTTS
+Werkzeug
+itsdangerous
+Jinja2
+click
