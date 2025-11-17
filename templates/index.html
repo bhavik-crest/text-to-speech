@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Text to Speech Converter</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet" />
+
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body class="bg-light">
+
+    <div class="container py-5">
+        <div class="card shadow-sm mx-auto" style="max-width: 700px;">
+            <div class="card-body">
+                <h2 class="card-title text-primary text-center mb-4">Text to Speech Converter</h2>
+
+                <!-- TEXT INPUT FORM -->
+                <form method="post">
+                    <div class="mb-3">
+                        <textarea class="form-control" id="textInput" name="text" rows="5"
+                                  placeholder="Write your text here..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Convert</button>
+                </form>
+
+                <div class="mt-4">
+
+                    <h5>All Audio Files (newest first)</h5>
+
+                    {% if files %}
+                    <ul class="list-group">
+                        {% for file in files %}
+                        <li class="list-group-item d-flex align-items-center justify-content-between gap-3">
+                            <audio controls class="flex-grow-1 me-3" style="outline:none;">
+                                <source src="{{ url_for('audio', filename=file) }}" type="audio/mp3" />
+                                Your browser does not support the audio element.
+                            </audio>
+
+                            <!-- DELETE BUTTON WITH SWEETALERT -->
+                            <form method="POST" action="{{ url_for('delete', filename=file) }}" class="delete-form">
+                                <button type="button" class="btn btn-md delete-btn" data-file="{{ file }}">
+                                    <i class="text-danger bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-muted fst-italic">
+                        No audio files found. Please convert some text to generate audio.
+                    </p>
+                    {% endif %}
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Disable Submit Button While Processing -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.querySelector('form');
+            const submitButton = form.querySelector('button[type="submit"]');
+
+            form.addEventListener('submit', function () {
+                if (submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.textContent = 'Processing...';
+                }
+            });
+        });
+    </script>
+
+    <!-- SweetAlert Delete Confirmation -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            document.querySelectorAll(".delete-btn").forEach(btn => {
+                btn.addEventListener("click", function () {
+                    const file = this.getAttribute("data-file");
+                    const form = this.closest("form");
+
+                    Swal.fire({
+                        title: "Are you sure?",
+                        text: `Delete ${file}?`,
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonColor: "#d33",
+                        cancelButtonColor: "#3085d6",
+                        confirmButtonText: "Yes, delete it!"
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            form.submit();
+                        }
+                    });
+                });
+            });
+        });
+    </script>
+
+    <!-- SweetAlert2 Toast Notifications (Flash Messages) -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+
+                Swal.fire({
+                    toast: true,
+                    position: "top-end",
+                    icon: "{{ 'success' if category=='success' else 'error' }}",
+                    title: "{{ message }}",
+                    showConfirmButton: false,
+                    timer: 2500,
+                    timerProgressBar: true
+                });
+
+                {% endfor %}
+            {% endif %}
+            {% endwith %}
+        });
+    </script>
+
+</body>
+</html>
